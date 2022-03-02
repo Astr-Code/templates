@@ -1,16 +1,17 @@
 'a template'
+import logging
+import sys
+import tkinter.filedialog
+import tkinter.messagebox
+from subprocess import run
 from tkinter import *
 from tkinter.constants import BOTH, BOTTOM, END, INSERT, LEFT
 from tkinter.scrolledtext import ScrolledText
-import tkinter.messagebox
-import tkinter.filedialog
 from tkinter.ttk import *
-import logging
-import sys
-from urllib.request import urlretrieve, urlopen
+from urllib.request import urlopen, urlretrieve
 from zipfile import ZipFile
-from subprocess import run
-
+import threading
+from pyperclip import copy, paste
 
 top = Tk()
 top.title('NotePad+')
@@ -40,7 +41,7 @@ try:
     with open(r'C:\Users\Public\python\change.py', 'x', encoding='utf-8') as f:
         f.write('''import re, fileinput
 
-field_pat = re.compile(r'\[(.*?)\]')
+field_pat = re.compile(r'\[(.+?)\]')
 scope = {}
 
 
@@ -72,7 +73,7 @@ class Events:
         self.filename = self.init_path = r'C:\Users\Public\'\
             Documents\unknown.txt'
 
-    def load(self, events = None):
+    def load(self, events=None):
         '''open a file'''
         try:
             self.filename = tkinter.filedialog.askopenfilename()
@@ -84,7 +85,7 @@ class Events:
         except FileNotFoundError:
             pass
 
-    def save(self, events = None):
+    def save(self, events=None):
         '''save a file'''
         try:
             if self.filename != self.init_path:
@@ -97,33 +98,33 @@ class Events:
         except FileNotFoundError:
             pass
 
-    def save_as(self, events = None):
+    def save_as(self, events=None):
         '''save as a file'''
         with tkinter.filedialog.asksaveasfile(title='另存为') as f:
             top.title('NotePad+ : {}'.format(f.name))
             f.write(contents.get('1.0', END))
             logging.info('saved as a file,call:"{}"'.format(self.filename))
 
-    def new(self, events = None):
+    def new(self, events=None):
         '''create a file'''
         contents.delete('1.0', END)
         logging.info('create a file')
         top.title('Unknown')
 
-    def import_file(self, events = None):
+    def import_file(self, events=None):
         '''import a python file'''
         self.filename_name = tkinter.filedialog.askopenfilename()
         cmd = r'C:\Users\Public\python\py\python.exe', r'C:\Users\Public\python\change.py', self.filename_name, self.filename
         changes = run(cmd)
         self._after_change()
 
-    def change(self, events = None):
+    def change(self, events=None):
         """change a file"""
         cmd = r'C:\Users\Public\python\py\python.exe', r'C:\Users\Public\python\change.py', self.filename
         changes = run(cmd)
         self._after_change()
 
-    def _after_change(self, events = None):
+    def _after_change(self, events=None):
         """after change a file"""
         data = open(r'D:\a.txt', 'r').read()
         open(self.filename, 'w', encoding='utf-8').write(data.strip())
@@ -133,11 +134,25 @@ class Events:
             top.title('NotePad+ : %s' % self.filename)
         logging.info('change a file')
 
+    def copy_text(self, events=None):
+        """copy text"""
+        text = contents.get('sel.first', 'sel.last')
+        copy(text)
+
+    def paste_text(self, events=None):
+        """paste text"""
+        text = paste()
+        contents.insert(INSERT, text)
+
+    def cut_text(self, events=None):
+        """cut text"""
+        self.copy_text(events)
+        contents.delete('sel.first', 'sel.last')
+
 
 events = Events()
 logging.info('open app')
 menubar = Menu(top)
-
 filemenu = Menu(menubar, tearoff=0)
 filemenu.add_command(label='新建', command=events.new, accelerator='Ctrl+N')
 filemenu.add_command(label='打开', command=events.load, accelerator='Ctrl+O')
@@ -152,13 +167,24 @@ top.bind("<Control-o>", events.load)
 top.bind("<Control-s>", events.save)
 top.bind("<Control-Shift-s>", events.save_as)
 
+editmenu = Menu(menubar, tearoff=0)
+editmenu.add_command(label='复制', command=events.copy_text,
+                     accelerator='Ctrl+C')
+editmenu.add_command(label='粘贴', command=events.paste_text,
+                     accelerator='Ctrl+V')
+editmenu.add_command(
+    label='剪切', command=events.cut_text, accelerator='Ctrl+X')
+menubar.add_cascade(label='编辑', menu=editmenu)
+
 importmenu = Menu(menubar, tearoff=0)
-importmenu.add_command(label='导入文件', command=events.import_file, accelerator='Ctrl+I')
-importmenu.add_command(label='运行', command=events.change, accelerator='Ctrl+R')
+importmenu.add_command(
+    label='导入文件', command=events.import_file, accelerator='Ctrl+I')
+importmenu.add_command(
+    label='运行', command=events.change, accelerator='Ctrl+R')
 menubar.add_cascade(label='导入', menu=importmenu)
 top.bind("<Control-i>", events.import_file)
 top.bind("<Control-r>", events.change)
-
 top.config(menu=menubar)
-tkinter.mainloop()
+
+top.mainloop()
 logging.info('close app')
